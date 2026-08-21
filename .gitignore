@@ -1,0 +1,12 @@
+data/
+datasets/
+checkpoints/
+models/
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+*.gguf
+__pycache__/
+.venv/
+
