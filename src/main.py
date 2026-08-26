@@ -2,6 +2,7 @@ import torch
 
 from src.tokenizer import CharTokenizer
 from src.model import ContextModel
+from src.generate import generate
 
 
 # =========================
@@ -133,14 +134,12 @@ def generate(
 # =========================
 
 def main():
-
     print("=== Cleverbot LLM Edition ===")
     print("Model: ContextModel")
-    print(f"Context size: {CONTEXT_SIZE}")
+    print("Context size: 16")
     print("Type 'exit' to quit.\n")
 
     while True:
-
         try:
             prompt = input("You: ")
 
@@ -158,7 +157,7 @@ def main():
         try:
             response = generate(
                 prompt,
-                max_new_tokens=MAX_NEW_TOKENS
+                max_new_tokens=100
             )
 
             print("AI:", response)

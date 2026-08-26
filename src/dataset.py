@@ -12,9 +12,16 @@ class CharDataset:
         self.x = []
         self.y = []
 
-        for i in range(len(self.tokens) - context_size):
-            context = self.tokens[i:i + context_size]
-            target = self.tokens[i + context_size]
+        for i in range(
+            len(self.tokens) - context_size
+        ):
+            context = self.tokens[
+                i:i + context_size
+            ]
+
+            target = self.tokens[
+                i + context_size
+            ]
 
             self.x.append(context)
             self.y.append(target)
@@ -44,12 +51,27 @@ if __name__ == "__main__":
     ) as f:
         text = f.read()
 
-    dataset = CharDataset(text)
+    context_size = 16
+
+    dataset = CharDataset(
+        text,
+        context_size=context_size
+    )
 
     print("Dataset size:", len(dataset))
     print(
         "Vocabulary size:",
         len(dataset.tokenizer.stoi)
+    )
+
+    print(
+        "PAD token:",
+        dataset.tokenizer.stoi["<PAD>"]
+    )
+
+    print(
+        "UNK token:",
+        dataset.tokenizer.stoi["<UNK>"]
     )
 
     for i in range(10):

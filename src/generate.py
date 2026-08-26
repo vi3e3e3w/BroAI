@@ -1,24 +1,53 @@
 import torch
 
 from src.tokenizer import CharTokenizer
-from src.model import BigramModel
+from src.model import ContextModel
 
 
+# =========================
+# Configuration
+# =========================
+
+CONTEXT_SIZE = 16
+MAX_NEW_TOKENS = 100
+
+MODEL_PATH = "checkpoints/model.pt"
+DATA_PATH = "data/raw/train.txt"
+
+
+# =========================
 # Load training data
-with open("data/raw/train.txt", "r", encoding="utf-8") as f:
+# =========================
+
+with open(
+    DATA_PATH,
+    "r",
+    encoding="utf-8"
+) as f:
     text = f.read()
+
+
+# =========================
+# Tokenizer
+# =========================
 
 tokenizer = CharTokenizer(text)
 
-# Create model with the same architecture used during training
-model = BigramModel(
-    vocab_size=len(tokenizer.stoi)
+vocab_size = len(tokenizer.stoi)
+
+
+# =========================
+# Load model
+# =========================
+
+model = ContextModel(
+    vocab_size=vocab_size,
+    context_size=CONTEXT_SIZE
 )
 
-# Load trained weights
 model.load_state_dict(
     torch.load(
-        "checkpoints/model.pt",
+        MODEL_PATH,
         map_location="cpu"
     )
 )
@@ -26,54 +55,151 @@ model.load_state_dict(
 model.eval()
 
 
-def generate(prompt, max_new_tokens=100):
+# =========================
+# Text generation
+# =========================
+
+def generate(
+    prompt,
+    max_new_tokens=MAX_NEW_TOKENS
+):
     ids = tokenizer.encode(prompt)
 
-    x = torch.tensor(ids, dtype=torch.long)
+    x = torch.tensor(
+        ids,
+        dtype=torch.long
+    )
+
+    original_length = len(x)
+
+    # ContextModel requires exactly
+    # CONTEXT_SIZE tokens.
+    if len(x) < CONTEXT_SIZE:
+        pad_id = tokenizer.stoi["<PAD>"]
+
+        padding = torch.full(
+            (CONTEXT_SIZE - len(x),),
+            pad_id,
+            dtype=torch.long
+        )
+
+        x = torch.cat([
+            padding,
+            x
+        ])
 
     for _ in range(max_new_tokens):
+
+        # Take the latest context.
+        context = x[-CONTEXT_SIZE:].unsqueeze(0)
+
         with torch.no_grad():
-            logits = model(x)
+            logits = model(context)
 
-        # Prediction for the last character
-        last_logits = logits[-1]
+        # [batch, vocab_size]
+        last_logits = logits[0]
 
-        # Convert logits to probabilities
-        probabilities = torch.softmax(last_logits, dim=0)
+        # =========================
+        # Sampling settings
+        # =========================
 
-        # Pick the most likely character
-        next_id = torch.multinomial(
+        temperature = 0.7
+        top_k = 5
+        # =========================
+        # Repetition penalty
+        # =========================
+
+        repetition_penalty = 1.15
+
+        for token_id in set(
+            x[-CONTEXT_SIZE:].tolist()
+        ):
+            if last_logits[token_id] > 0:
+                last_logits[token_id] /= repetition_penalty
+            else:
+                last_logits[token_id] *= repetition_penalty
+        # Apply temperature
+        scaled_logits = last_logits / temperature
+
+        # Keep only the top-k candidates
+        top_values, top_indices = torch.topk(
+            scaled_logits,
+            k=min(top_k, scaled_logits.size(-1))
+        )
+
+        # Convert top-k logits to probabilities
+        probabilities = torch.softmax(
+            top_values,
+            dim=0
+        )
+
+        # Sample from top-k
+        sample_index = torch.multinomial(
             probabilities,
             num_samples=1
         ).item()
 
-        # Append it
+        next_id = top_indices[sample_index].item()
+
         x = torch.cat([
             x,
-            torch.tensor([next_id], dtype=torch.long)
+            torch.tensor(
+                [next_id],
+                dtype=torch.long
+            )
         ])
 
-    return tokenizer.decode(x.tolist())
+    # Remove padding and prompt.
+    if original_length < CONTEXT_SIZE:
+        generated = x[CONTEXT_SIZE:]
+    else:
+        generated = x[original_length:]
+
+    return tokenizer.decode(
+        generated.tolist()
+    )
 
 
-if __name__ == "__main__":
+# =========================
+# Main
+# =========================
+
+def main():
+
     print("=== Cleverbot LLM Edition ===")
+    print("Model: ContextModel")
+    print(f"Context size: {CONTEXT_SIZE}")
     print("Type 'exit' to quit.\n")
 
     while True:
-        prompt = input("You: ")
+
+        try:
+            prompt = input("You: ")
+
+        except (KeyboardInterrupt, EOFError):
+            print("\nAI: Bye!")
+            break
 
         if prompt.lower() == "exit":
             print("AI: Bye!")
             break
 
+        if not prompt:
+            continue
+
         try:
-            output = generate(
+            response = generate(
                 prompt,
-                max_new_tokens=100
+                max_new_tokens=MAX_NEW_TOKENS
             )
 
-            print("AI:", output)
+            print("AI:", response)
 
         except KeyError as e:
-            print("AI: Unknown character:", e)
+            print(
+                f"AI: I don't know this character yet: {e}"
+            )
+
+
+if __name__ == "__main__":
+    main()
