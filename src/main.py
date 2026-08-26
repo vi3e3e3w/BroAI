@@ -1,30 +1,53 @@
 import torch
 
 from src.tokenizer import CharTokenizer
-from src.model import BigramModel
+from src.model import ContextModel
+
+
+# =========================
+# Configuration
+# =========================
+
+CONTEXT_SIZE = 16
+MAX_NEW_TOKENS = 100
+
+MODEL_PATH = "checkpoints/model.pt"
+DATA_PATH = "data/raw/train.txt"
 
 
 # =========================
 # Load training data
 # =========================
 
-with open("data/raw/train.txt", "r", encoding="utf-8") as f:
+with open(
+    DATA_PATH,
+    "r",
+    encoding="utf-8"
+) as f:
     text = f.read()
+
+
+# =========================
+# Tokenizer
+# =========================
 
 tokenizer = CharTokenizer(text)
 
+vocab_size = len(tokenizer.stoi)
+
 
 # =========================
-# Load trained model
+# Load model
 # =========================
 
-model = BigramModel(
-    vocab_size=len(tokenizer.stoi)
+model = ContextModel(
+    vocab_size=vocab_size,
+    context_size=CONTEXT_SIZE
 )
 
 model.load_state_dict(
     torch.load(
-        "checkpoints/model.pt",
+        MODEL_PATH,
         map_location="cpu"
     )
 )
@@ -36,7 +59,10 @@ model.eval()
 # Text generation
 # =========================
 
-def generate(prompt, max_new_tokens=100):
+def generate(
+    prompt,
+    max_new_tokens=MAX_NEW_TOKENS
+):
     ids = tokenizer.encode(prompt)
 
     x = torch.tensor(
@@ -44,20 +70,40 @@ def generate(prompt, max_new_tokens=100):
         dtype=torch.long
     )
 
+    original_length = len(x)
+
+    # ContextModel requires exactly
+    # CONTEXT_SIZE tokens.
+    if len(x) < CONTEXT_SIZE:
+        padding = torch.zeros(
+            CONTEXT_SIZE - len(x),
+            dtype=torch.long
+        )
+
+        x = torch.cat([
+            padding,
+            x
+        ])
+
     for _ in range(max_new_tokens):
+
+        # Use only the latest context.
+        context = x[-CONTEXT_SIZE:].unsqueeze(0)
+
         with torch.no_grad():
-            logits = model(x)
+            logits = model(context)
 
-        # Get prediction for the last character
-        last_logits = logits[-1]
+        # Model output:
+        # [batch, vocab_size]
+        last_logits = logits[0]
 
-        # Convert logits to probabilities
         probabilities = torch.softmax(
             last_logits,
             dim=0
         )
 
-        # Sample the next character
+        # Sample instead of always
+        # choosing the most likely token.
         next_id = torch.multinomial(
             probabilities,
             num_samples=1
@@ -71,7 +117,15 @@ def generate(prompt, max_new_tokens=100):
             )
         ])
 
-    return tokenizer.decode(x.tolist())
+    # Remove padding + original prompt.
+    if original_length < CONTEXT_SIZE:
+        generated = x[CONTEXT_SIZE:]
+    else:
+        generated = x[original_length:]
+
+    return tokenizer.decode(
+        generated.tolist()
+    )
 
 
 # =========================
@@ -79,12 +133,20 @@ def generate(prompt, max_new_tokens=100):
 # =========================
 
 def main():
+
     print("=== Cleverbot LLM Edition ===")
-    print("Model: BigramModel")
+    print("Model: ContextModel")
+    print(f"Context size: {CONTEXT_SIZE}")
     print("Type 'exit' to quit.\n")
 
     while True:
-        prompt = input("You: ")
+
+        try:
+            prompt = input("You: ")
+
+        except (KeyboardInterrupt, EOFError):
+            print("\nAI: Bye!")
+            break
 
         if prompt.lower() == "exit":
             print("AI: Bye!")
@@ -94,13 +156,10 @@ def main():
             continue
 
         try:
-            output = generate(
+            response = generate(
                 prompt,
-                max_new_tokens=100
+                max_new_tokens=MAX_NEW_TOKENS
             )
-
-            # Remove the original prompt from the output
-            response = output[len(prompt):]
 
             print("AI:", response)
 
@@ -112,4 +171,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

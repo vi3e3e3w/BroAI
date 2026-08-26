@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.optim as optim
 
 from src.dataset import CharDataset
-from src.model import BigramModel
+from src.model import ContextModel
 
 
 # =========================
@@ -13,7 +13,12 @@ from src.model import BigramModel
 with open("data/raw/train.txt", "r", encoding="utf-8") as f:
     text = f.read()
 
-dataset = CharDataset(text)
+context_size = 16
+
+dataset = CharDataset(
+    text,
+    context_size=context_size
+)
 
 vocab_size = len(dataset.tokenizer.stoi)
 
@@ -25,11 +30,15 @@ print("Vocabulary size:", vocab_size)
 # 2. Create model
 # =========================
 
-model = BigramModel(vocab_size)
+model = ContextModel(
+    vocab_size=vocab_size,
+    context_size=context_size
+)
 
-print("Parameters:", sum(p.numel() for p in model.parameters()))
-
-
+print(
+    "Parameters:",
+    sum(p.numel() for p in model.parameters())
+)
 # =========================
 # 3. Loss + optimizer
 # =========================
@@ -38,7 +47,7 @@ criterion = nn.CrossEntropyLoss()
 
 optimizer = optim.AdamW(
     model.parameters(),
-    lr=0.01
+    lr=0.001
 )
 
 
