@@ -10,7 +10,7 @@ from src.model import ContextModel
 # 1. Load training data
 # =========================
 
-with open("data/raw/train.txt", "r", encoding="utf-8") as f:
+with open("data/processed/train.txt", "r", encoding="utf-8") as f:
     text = f.read()
 
 context_size = 16

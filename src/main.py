@@ -14,7 +14,7 @@ MAX_NEW_TOKENS = 100
 
 MODEL_PATH = "checkpoints/model.pt"
 DATA_PATH = "data/raw/train.txt"
-
+CONVERSATION_PATH = "data/conversations/chat.txt"
 
 # =========================
 # Load training data
@@ -157,16 +157,24 @@ def main():
         try:
             response = generate(
                 prompt,
-                max_new_tokens=100
+                max_new_tokens=MAX_NEW_TOKENS
             )
 
             print("AI:", response)
+
+            # Save conversation
+            with open(
+                CONVERSATION_PATH,
+                "a",
+                encoding="utf-8"
+            ) as f:
+                f.write(f"You: {prompt}\n")
+                f.write(f"AI: {response}\n")
+                f.write("\n")
 
         except KeyError as e:
             print(
                 f"AI: I don't know this character yet: {e}"
             )
-
-
 if __name__ == "__main__":
     main()
