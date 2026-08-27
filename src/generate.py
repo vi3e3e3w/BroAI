@@ -12,7 +12,7 @@ CONTEXT_SIZE = 16
 MAX_NEW_TOKENS = 100
 
 MODEL_PATH = "checkpoints/model.pt"
-DATA_PATH = "data/raw/train.txt"
+DATA_PATH = "data/processed/train.txt"
 
 
 # =========================
@@ -87,68 +87,61 @@ def generate(
             padding,
             x
         ])
-
+    generated_ids = []
     for _ in range(max_new_tokens):
 
-        # Take the latest context.
         context = x[-CONTEXT_SIZE:].unsqueeze(0)
 
         with torch.no_grad():
             logits = model(context)
 
-        # [batch, vocab_size]
         last_logits = logits[0]
-
-        # =========================
-        # Sampling settings
-        # =========================
 
         temperature = 0.7
         top_k = 5
-        # =========================
-        # Repetition penalty
-        # =========================
 
         repetition_penalty = 1.15
 
-        for token_id in set(
-            x[-CONTEXT_SIZE:].tolist()
-        ):
+        for token_id in set(x[-CONTEXT_SIZE:].tolist()):
             if last_logits[token_id] > 0:
                 last_logits[token_id] /= repetition_penalty
             else:
                 last_logits[token_id] *= repetition_penalty
-        # Apply temperature
+
         scaled_logits = last_logits / temperature
 
-        # Keep only the top-k candidates
         top_values, top_indices = torch.topk(
             scaled_logits,
             k=min(top_k, scaled_logits.size(-1))
         )
 
-        # Convert top-k logits to probabilities
         probabilities = torch.softmax(
             top_values,
             dim=0
         )
 
-        # Sample from top-k
         sample_index = torch.multinomial(
             probabilities,
             num_samples=1
         ).item()
 
         next_id = top_indices[sample_index].item()
-
+        generated_ids.append(next_id)
         x = torch.cat([
             x,
-            torch.tensor(
-                [next_id],
-                dtype=torch.long
-            )
+            torch.tensor([next_id], dtype=torch.long)
         ])
 
+        # Stop when the model starts a new speaker.
+        generated_text = tokenizer.decode(
+            x[original_length:].tolist()
+        )
+
+        if "You:" in generated_text:
+            break
+
+        if generated_text.count("AI:") > 0:
+            break
     # Remove padding and prompt.
     if original_length < CONTEXT_SIZE:
         generated = x[CONTEXT_SIZE:]
@@ -158,6 +151,14 @@ def generate(
     return tokenizer.decode(
         generated.tolist()
     )
+
+    # Remove accidental speaker labels.
+    response = response.replace("AI:", "")
+
+    if "You:" in response:
+        response = response.split("You:", 1)[0]
+
+    return response.strip()
 
 
 # =========================

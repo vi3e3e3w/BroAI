@@ -13,7 +13,7 @@ CONTEXT_SIZE = 16
 MAX_NEW_TOKENS = 100
 
 MODEL_PATH = "checkpoints/model.pt"
-DATA_PATH = "data/raw/train.txt"
+DATA_PATH = "data/processed/train.txt"
 CONVERSATION_PATH = "data/conversations/chat.txt"
 
 # =========================
@@ -160,6 +160,12 @@ def main():
                 max_new_tokens=MAX_NEW_TOKENS
             )
 
+
+            response = response.strip()
+
+            if response.startswith("AI:"):
+                response = response[3:].lstrip()
+
             print("AI:", response)
 
             # Save conversation
@@ -168,8 +174,8 @@ def main():
                 "a",
                 encoding="utf-8"
             ) as f:
-                f.write(f"You: {prompt}\n")
-                f.write(f"AI: {response}\n")
+                f.write(f:"{prompt}\n")
+                f.write(f"{response}\n")
                 f.write("\n")
 
         except KeyError as e:
