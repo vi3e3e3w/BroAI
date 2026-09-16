@@ -70,8 +70,6 @@ def generate(
         dtype=torch.long
     )
 
-    original_length = len(x)
-
     # ContextModel requires exactly
     # CONTEXT_SIZE tokens.
     if len(x) < CONTEXT_SIZE:
@@ -87,7 +85,13 @@ def generate(
             padding,
             x
         ])
+
     generated_ids = []
+
+    temperature = 0.7
+    top_k = 5
+    repetition_penalty = 1.15
+
     for _ in range(max_new_tokens):
 
         context = x[-CONTEXT_SIZE:].unsqueeze(0)
@@ -95,14 +99,11 @@ def generate(
         with torch.no_grad():
             logits = model(context)
 
-        last_logits = logits[0]
+        last_logits = logits[0].clone()
 
-        temperature = 0.7
-        top_k = 5
-
-        repetition_penalty = 1.15
-
+        # Reduce probability of recently used characters.
         for token_id in set(x[-CONTEXT_SIZE:].tolist()):
+
             if last_logits[token_id] > 0:
                 last_logits[token_id] /= repetition_penalty
             else:
@@ -126,37 +127,28 @@ def generate(
         ).item()
 
         next_id = top_indices[sample_index].item()
+
         generated_ids.append(next_id)
+
         x = torch.cat([
             x,
-            torch.tensor([next_id], dtype=torch.long)
+            torch.tensor(
+                [next_id],
+                dtype=torch.long
+            )
         ])
 
-        # Stop when the model starts a new speaker.
         generated_text = tokenizer.decode(
-            x[original_length:].tolist()
+            generated_ids
         )
 
-        if "You:" in generated_text:
+        # Stop when a blank paragraph appears.
+        if "\n\n" in generated_text:
             break
 
-        if generated_text.count("AI:") > 0:
-            break
-    # Remove padding and prompt.
-    if original_length < CONTEXT_SIZE:
-        generated = x[CONTEXT_SIZE:]
-    else:
-        generated = x[original_length:]
-
-    return tokenizer.decode(
-        generated.tolist()
+    response = tokenizer.decode(
+        generated_ids
     )
-
-    # Remove accidental speaker labels.
-    response = response.replace("AI:", "")
-
-    if "You:" in response:
-        response = response.split("You:", 1)[0]
 
     return response.strip()
 

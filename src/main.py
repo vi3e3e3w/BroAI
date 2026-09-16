@@ -155,11 +155,12 @@ def main():
             continue
 
         try:
-            response = generate(
-                prompt,
-                max_new_tokens=MAX_NEW_TOKENS
-            )
+            tagged_prompt = f"<USER>{prompt}\n<AI>"
 
+            response = generate(
+                 tagged_prompt,
+                 max_new_tokens=MAX_NEW_TOKENS
+            )
 
             response = response.strip()
 
@@ -174,7 +175,7 @@ def main():
                 "a",
                 encoding="utf-8"
             ) as f:
-                f.write(f:"{prompt}\n")
+                f.write(f"{prompt}\n")
                 f.write(f"{response}\n")
                 f.write("\n")
 
