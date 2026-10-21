@@ -45,11 +45,13 @@ model = ContextModel(
     context_size=CONTEXT_SIZE
 )
 
+checkpoint = torch.load(
+    MODEL_PATH,
+    map_location="cpu"
+)
+
 model.load_state_dict(
-    torch.load(
-        MODEL_PATH,
-        map_location="cpu"
-    )
+    checkpoint["model_state_dict"]
 )
 
 model.eval()

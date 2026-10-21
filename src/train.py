@@ -24,7 +24,8 @@ vocab_size = len(dataset.tokenizer.stoi)
 
 print("Dataset size:", len(dataset))
 print("Vocabulary size:", vocab_size)
-
+print("USER tag:", "<USER>" in text)
+print("AI tag:", "<AI>" in text)
 
 # =========================
 # 2. Create model
@@ -87,7 +88,12 @@ for epoch in range(epochs):
 # =========================
 
 torch.save(
-    model.state_dict(),
+    {
+        "model_state_dict": model.state_dict(),
+        "stoi": dataset.tokenizer.stoi,
+        "itos": dataset.tokenizer.itos,
+        "context_size": context_size,
+    },
     "checkpoints/model.pt"
 )
 
