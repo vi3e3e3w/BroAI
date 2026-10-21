@@ -3,6 +3,8 @@ from src.generate import generate
 
 MAX_NEW_TOKENS = 100
 CONVERSATION_PATH = "data/conversations/chat.txt"
+USER_TAG = "<USER>"
+AI_TAG = "<AI>"
 
 
 # =========================
@@ -33,7 +35,7 @@ def main():
             continue
 
         try:
-            tagged_prompt = f"<USER>{prompt}\n<AI>"
+            tagged_prompt = f"{USER_TAG} {prompt}\n{AI_TAG} "
 
             response = generate(
                 tagged_prompt,
@@ -53,8 +55,10 @@ def main():
                 "a",
                 encoding="utf-8"
             ) as f:
-                f.write(f"{prompt}\n")
-                f.write(f"{response}\n")
+                clean_prompt = prompt.replace("\r", " ").replace("\n", " ")
+                clean_response = response.replace("\r", " ").replace("\n", " ")
+                f.write(f"{USER_TAG} {clean_prompt}\n")
+                f.write(f"{AI_TAG} {clean_response}\n")
                 f.write("\n")
 
         except KeyError as e:

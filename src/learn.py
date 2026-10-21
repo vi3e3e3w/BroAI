@@ -20,15 +20,25 @@ def format_chat(chat_data):
 
         if line.startswith("USER:"):
             content = line[len("USER:"):].strip()
-            lines.append(f"{USER_TAG} {content}")
+            role_tag = USER_TAG
 
         elif line.startswith("AI:"):
             content = line[len("AI:"):].strip()
-            lines.append(f"{AI_TAG} {content}")
+            role_tag = AI_TAG
+
+        elif line.startswith(USER_TAG):
+            content = line[len(USER_TAG):].strip()
+            role_tag = USER_TAG
+
+        elif line.startswith(AI_TAG):
+            content = line[len(AI_TAG):].strip()
+            role_tag = AI_TAG
 
         else:
-            # Giữ nguyên những dòng chưa có role tag
-            lines.append(line)
+            continue
+
+        if content:
+            lines.append(f"{role_tag} {content}")
 
     return "\n".join(lines)
 

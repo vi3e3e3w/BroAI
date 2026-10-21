@@ -18,6 +18,40 @@ class CharTokenizer:
             for ch, i in self.stoi.items()
         }
 
+    @classmethod
+    def from_mappings(cls, stoi, itos=None):
+        tokenizer = cls.__new__(cls)
+        tokenizer.stoi = {
+            token: int(index)
+            for token, index in stoi.items()
+        }
+
+        if itos is None:
+            tokenizer.itos = {
+                index: token
+                for token, index in tokenizer.stoi.items()
+            }
+        else:
+            tokenizer.itos = {
+                int(index): token
+                for index, token in itos.items()
+            }
+
+        expected_ids = set(range(len(tokenizer.stoi)))
+        if (
+            tokenizer.stoi.get(cls.PAD_TOKEN) != 0
+            or tokenizer.stoi.get(cls.UNK_TOKEN) != 1
+            or set(tokenizer.stoi.values()) != expected_ids
+            or len(tokenizer.itos) != len(tokenizer.stoi)
+            or any(
+                tokenizer.itos.get(index) != token
+                for token, index in tokenizer.stoi.items()
+            )
+        ):
+            raise ValueError("Invalid tokenizer mappings in checkpoint")
+
+        return tokenizer
+
     def encode(self, text):
         return [
             self.stoi.get(
