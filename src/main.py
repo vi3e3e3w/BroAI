@@ -27,7 +27,7 @@ def main():
             print("\nAI: Bye!")
             break
 
-        if prompt.lower() == "exit":
+        if prompt.lower() == "/exit":
             print("AI: Bye!")
             break
 
